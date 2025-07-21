@@ -1,0 +1,37 @@
+package configs
+
+import (
+	"log"
+	"os"
+
+	"github.com/joho/godotenv"
+)
+
+type EnvConfig struct {
+	JwtSecret string
+}
+
+var Env *EnvConfig
+
+func LoadEnv() {
+	_ = godotenv.Load()
+
+	Env = &EnvConfig{
+		JwtSecret: mustGetEnv("JWT_SECRET"),
+	}
+}
+
+func getEnv(key string, fallback string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return fallback
+}
+
+func mustGetEnv(key string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	log.Fatalf("Environment variable %s is required but not set", key)
+	return ""
+}
