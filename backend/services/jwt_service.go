@@ -3,7 +3,7 @@ package services
 import (
 	"time"
 
-	"github.com/LeeChasel/sharevault/backend/configs"
+	"github.com/LeeChasel/shareVault/backend/configs"
 	"github.com/golang-jwt/jwt/v4"
 )
 

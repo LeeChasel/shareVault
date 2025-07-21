@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"github.com/LeeChasel/sharevault/backend/handlers"
+	"github.com/LeeChasel/shareVault/backend/handlers"
 	"github.com/gin-gonic/gin"
 )
 

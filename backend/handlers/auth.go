@@ -3,8 +3,8 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/LeeChasel/sharevault/backend/models"
-	"github.com/LeeChasel/sharevault/backend/services"
+	"github.com/LeeChasel/shareVault/backend/models"
+	"github.com/LeeChasel/shareVault/backend/services"
 	"github.com/gin-gonic/gin"
 )
 

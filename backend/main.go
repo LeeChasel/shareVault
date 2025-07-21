@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/LeeChasel/sharevault/backend/configs"
-	"github.com/LeeChasel/sharevault/backend/routes"
+	"github.com/LeeChasel/shareVault/backend/configs"
+	"github.com/LeeChasel/shareVault/backend/routes"
 	"github.com/gin-gonic/gin"
 )
 

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/LeeChasel/sharevault/backend/services"
+	"github.com/LeeChasel/shareVault/backend/services"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,7 +16,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		_, err := services.ValidateJWT(tokenString)
 		if err != nil {

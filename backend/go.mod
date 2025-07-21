@@ -1,4 +1,4 @@
-module github.com/LeeChasel/sharevault/backend
+module github.com/LeeChasel/shareVault/backend
 
 go 1.24.5
 
