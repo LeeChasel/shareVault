@@ -8,6 +8,8 @@ import (
 
 func main() {
 	configs.LoadEnv()
+	configs.InitDB()
+	configs.GetDB().AutoMigrate()
 	r := gin.Default()
 	routes.InitRoutes(r)
 	r.Run(":8080")
