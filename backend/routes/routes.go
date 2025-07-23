@@ -6,6 +6,7 @@ import (
 )
 
 func InitRoutes(r *gin.Engine) {
+	r.POST("/register", handlers.Register)
 	r.POST("/login", handlers.Login)
 	r.POST("/logout", handlers.Logout)
-} 
+}
