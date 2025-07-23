@@ -52,24 +52,35 @@ func Register(c *gin.Context) {
 }
 
 func Login(c *gin.Context) {
-	var req models.User
+	var req dto.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "參數錯誤"})
 		return
 	}
-	// Default username and password
-	if req.Username != "admin" || req.Password != "password" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "帳號或密碼錯誤"})
+
+	userRepo := c.MustGet("repos").(*repository.Repositories).User
+	user, err := userRepo.FindByEmail(req.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "伺服器錯誤"})
 		return
 	}
-	token, err := services.GenerateJWT(req.Username)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "此 email 尚未註冊，請先註冊"})
+		return
+	}
+	if !services.CheckPassword(user.Password, req.Password) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "密碼錯誤，請再試一次"})
+		return
+	}
+
+	token, err := services.GenerateJWT(user.Username)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "JWT 產生失敗"})
 		return
 	}
 	// Set JWT cookie
 	c.SetCookie("jwt", token, 86400, "/", "", false, true)
-	c.JSON(http.StatusOK, gin.H{"message": "login success"})
+	c.JSON(http.StatusOK, gin.H{"message": "login success", "token": token})
 }
 
 func Logout(c *gin.Context) {

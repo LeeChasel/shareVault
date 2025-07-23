@@ -28,3 +28,15 @@ func (r *UserRepository) ExistsByUsername(username string) bool {
 	r.db.Model(&models.User{}).Where("username = ?", username).Count(&count)
 	return count > 0
 }
+
+func (r *UserRepository) FindByEmail(email string) (*models.User, error) {
+	var user models.User
+	err := r.db.Where("email = ?", email).First(&user).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
+}
