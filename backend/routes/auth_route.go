@@ -8,5 +8,4 @@ import (
 func RegisterAuthRoutes(r *gin.RouterGroup) {
 	r.POST("/register", handlers.Register)
 	r.POST("/login", handlers.Login)
-	r.POST("/logout", handlers.Logout)
 }

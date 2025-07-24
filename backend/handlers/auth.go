@@ -78,13 +78,6 @@ func Login(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "JWT 產生失敗"})
 		return
 	}
-	// Set JWT cookie
-	c.SetCookie("jwt", token, 86400, "/", "", false, true)
-	c.JSON(http.StatusOK, gin.H{"message": "login success", "token": token})
-}
 
-func Logout(c *gin.Context) {
-	// Clear JWT cookie
-	c.SetCookie("jwt", "", -1, "/", "", false, true)
-	c.JSON(http.StatusOK, gin.H{"message": "logout success"})
+	c.JSON(http.StatusOK, gin.H{"token": token})
 }
