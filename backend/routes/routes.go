@@ -1,12 +1,13 @@
 package routes
 
 import (
-	"github.com/LeeChasel/shareVault/backend/handlers"
 	"github.com/gin-gonic/gin"
 )
 
+const apiVersion = "v1"
+
 func InitRoutes(r *gin.Engine) {
-	r.POST("/register", handlers.Register)
-	r.POST("/login", handlers.Login)
-	r.POST("/logout", handlers.Logout)
+	api := r.Group("/api/" + apiVersion)
+
+	RegisterAuthRoutes(api.Group("/auth"))
 }
