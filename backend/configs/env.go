@@ -8,12 +8,14 @@ import (
 )
 
 type EnvConfig struct {
-	JwtSecret  string
-	DBHost     string
-	DBPort     string
-	DBUser     string
-	DBPassword string
-	DBName     string
+	JwtSecret   string
+	DBHost      string
+	DBPort      string
+	DBUser      string
+	DBPassword  string
+	DBName      string
+	AWSRegion   string
+	AWSS3Bucket string
 }
 
 var Env *EnvConfig
@@ -22,12 +24,14 @@ func LoadEnv() {
 	_ = godotenv.Load()
 
 	Env = &EnvConfig{
-		JwtSecret:  mustGetEnv("JWT_SECRET"),
-		DBHost:     mustGetEnv("DB_HOST"),
-		DBPort:     mustGetEnv("DB_PORT"),
-		DBUser:     mustGetEnv("DB_USER"),
-		DBPassword: mustGetEnv("DB_PASSWORD"),
-		DBName:     mustGetEnv("DB_NAME"),
+		JwtSecret:   mustGetEnv("JWT_SECRET"),
+		DBHost:      mustGetEnv("DB_HOST"),
+		DBPort:      mustGetEnv("DB_PORT"),
+		DBUser:      mustGetEnv("DB_USER"),
+		DBPassword:  mustGetEnv("DB_PASSWORD"),
+		DBName:      mustGetEnv("DB_NAME"),
+		AWSRegion:   mustGetEnv("AWS_REGION"),
+		AWSS3Bucket: mustGetEnv("AWS_S3_BUCKET"),
 	}
 }
 

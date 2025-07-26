@@ -13,11 +13,11 @@ import (
 
 func main() {
 	configs.LoadEnv()
+	configs.InitAWSConfig()
 
 	configs.InitDB()
 	db := configs.GetDB()
-	db.Exec(`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`)
-	migrationError := db.AutoMigrate(&models.User{})
+	migrationError := db.AutoMigrate(models.AllModels()...)
 	if migrationError != nil {
 		log.Fatalf("Migration error: %v", migrationError)
 	}

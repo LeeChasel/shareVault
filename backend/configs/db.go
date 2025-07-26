@@ -17,6 +17,7 @@ func InitDB() {
 	if err != nil {
 		log.Fatalf("無法連接資料庫: %v", err)
 	}
+	database.Exec(`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`)
 	db = database
 }
 

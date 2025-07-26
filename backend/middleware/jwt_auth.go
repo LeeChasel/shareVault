@@ -12,7 +12,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "缺少或錯誤的授權標頭"})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "未經授權，請先登入"})
 			c.Abort()
 			return
 		}
@@ -26,4 +26,4 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 		}
 		c.Next()
 	}
-} 
+}
