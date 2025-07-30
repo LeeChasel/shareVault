@@ -17,6 +17,37 @@ import (
 	"github.com/google/uuid"
 )
 
+func ListUserFiles(c *gin.Context) {
+	// Timeout context
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	userId := c.MustGet("userId").(string)
+
+	repos := c.MustGet("repos").(*repository.Repositories)
+	fileRepo := repos.File
+
+	files, err := fileRepo.GetByUserId(ctx, userId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法獲取用戶檔案"})
+		return
+	}
+
+	var results []dto.ListUserFilesResponse
+	for _, file := range files {
+		results = append(results, dto.ListUserFilesResponse{
+			Id:       file.ID.String(),
+			FileName: file.FileName,
+			FilePath: file.FilePath,
+			FileHash: file.FileHash,
+			FileSize: file.FileSize,
+			MimeType: file.MimeType,
+		})
+	}
+
+	c.JSON(http.StatusOK, results)
+}
+
 func UploadFiles(c *gin.Context) {
 	// Timeout context
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
