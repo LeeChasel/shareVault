@@ -21,3 +21,7 @@ type UploadFilesResponse struct {
 	Message string					`json:"message"`
 	Results []UploadResult `json:"results"`
 }
+
+type DeleteFilesRequest struct {
+	FileIds []string `json:"fileIds"`
+}

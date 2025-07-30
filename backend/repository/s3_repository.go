@@ -7,6 +7,7 @@ import (
 	"github.com/LeeChasel/shareVault/backend/configs"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
 type S3Repository struct {
@@ -28,10 +29,22 @@ func (r *S3Repository) UploadFiles(ctx context.Context, key string, data []byte,
 	return err
 }
 
-func (r *S3Repository) DeleteFile(ctx context.Context, key string) error {
-	_, err := configs.S3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
+func (r *S3Repository) DeleteFiles(ctx context.Context, keys []string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+
+	objects := make([]types.ObjectIdentifier, len(keys))
+	for i, key := range keys {
+		objects[i] = types.ObjectIdentifier{
+			Key: aws.String(key),
+		}
+	}
+	_, err := configs.S3Client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
 		Bucket: aws.String(r.bucket),
-		Key:    aws.String(key),
+		Delete: &types.Delete{
+			Objects: objects,
+		},
 	})
 	
 	return err

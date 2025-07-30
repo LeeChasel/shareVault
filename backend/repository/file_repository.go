@@ -32,3 +32,27 @@ func (r *FileRepository) GetByUserId(ctx context.Context, userId string) ([]*mod
 	}
 	return files, nil
 }
+
+func (r *FileRepository) GetByIds(ctx context.Context, fileIds []string) ([]*models.File, error) {
+	if len(fileIds) == 0 {
+		return nil, nil
+	}
+
+	var files []*models.File
+	if err := r.db.WithContext(ctx).Where("id IN ?", fileIds).Find(&files).Error; err != nil {
+		return nil, err
+	}
+
+	return files, nil
+}
+
+func (r *FileRepository) DeleteByIds(ctx context.Context, fileIds []string) error {
+	if len(fileIds) == 0 {
+		return nil
+	}
+	if err := r.db.WithContext(ctx).Where("id IN ?", fileIds).Delete(&models.File{}).Error; err != nil {
+		return err
+	}
+
+	return nil
+}

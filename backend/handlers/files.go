@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -153,7 +154,7 @@ func UploadFiles(c *gin.Context) {
 		createdFile, err := fileRepo.Create(ctx, fileRecord)
 		if err != nil {
 			// rollback s3 upload
-			s3Repo.DeleteFile(ctx, key)
+			s3Repo.DeleteFiles(ctx, []string{key})
 			result.Error = fmt.Sprintf("資料庫記錄失敗: %v", err)
 			results = append(results, result)
 			continue
@@ -182,4 +183,87 @@ func UploadFiles(c *gin.Context) {
 			Results: results,
 		})
 	}
+}
+
+// 不考慮刪除失敗的狀況
+func DeleteFileByIds(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	userId := c.MustGet("userId").(string)
+
+	var request dto.DeleteFilesRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的請求參數"})
+		return
+	}
+
+	if len(request.FileIds) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "請提供要刪除的檔案 IDs"})
+		return
+	}
+
+	if len(request.FileIds) > 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "單次刪除檔案數量過多（最多100個）"})
+		return
+}
+
+	repos := c.MustGet("repos").(*repository.Repositories)
+	fileRepo := repos.File
+	s3Repo := repos.S3
+
+	files, err := fileRepo.GetByIds(ctx, request.FileIds)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法獲取檔案資訊"})
+		return
+	}
+
+	if len(request.FileIds) != len(files) {
+		// Find the missing file IDs
+		var missingFileIds []string
+		for _, fileId := range request.FileIds {
+			found := false
+			for _, file := range files {
+				if file.ID.String() == fileId {
+					found = true
+					break
+				}
+			}
+			if !found {
+				missingFileIds = append(missingFileIds, fileId)
+			}
+		}
+
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("以下檔案 ID 不存在: %v", missingFileIds)})
+		return
+	}
+
+	for _, file := range files {
+		if file.UserID.String() != userId {
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": fmt.Sprintf("無權限刪除檔案: %s", file.FileName),
+			})
+			return
+		}
+	}
+	
+	err = fileRepo.DeleteByIds(ctx, request.FileIds)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "資料庫刪除檔案失敗"})
+		return
+	}
+
+	var filePaths []string
+	for _, file := range files {
+		filePaths = append(filePaths, file.FilePath)
+	}
+	
+	err = s3Repo.DeleteFiles(ctx, filePaths)
+	if err != nil {
+		// S3 刪除失敗，但資料庫已刪除
+		log.Printf("S3 deletion failed for user %s, files: %v, error: %v", userId, filePaths, err)
+	}
+	
+	log.Printf("User %s successfully deleted files: %v", userId, request.FileIds)
+	c.JSON(http.StatusOK, gin.H{"message": "檔案刪除成功"})
 }
