@@ -18,12 +18,14 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 		}
 
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		_, err := services.ValidateJWT(tokenString)
+		claims, err := services.ValidateJWT(tokenString)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "無效的 JWT"})
 			c.Abort()
 			return
 		}
+
+		c.Set("userId", claims.Subject)
 		c.Next()
 	}
 }

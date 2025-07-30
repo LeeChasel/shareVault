@@ -27,3 +27,12 @@ func (r *S3Repository) UploadFiles(ctx context.Context, key string, data []byte,
 
 	return err
 }
+
+func (r *S3Repository) DeleteFile(ctx context.Context, key string) error {
+	_, err := configs.S3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(r.bucket),
+		Key:    aws.String(key),
+	})
+	
+	return err
+}

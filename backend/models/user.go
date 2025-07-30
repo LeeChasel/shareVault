@@ -11,6 +11,7 @@ type User struct {
 	Email     string    `gorm:"not null;unique"`
 	Username  string    `gorm:"not null;unique"`
 	Password  string    `gorm:"not null"`
+	Files     []File    `gorm:"foreignKey:UserID;references:ID"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
