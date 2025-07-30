@@ -7,13 +7,12 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/LeeChasel/shareVault/backend/dto"
 	"github.com/LeeChasel/shareVault/backend/models"
 	"github.com/LeeChasel/shareVault/backend/repository"
+	"github.com/LeeChasel/shareVault/backend/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -122,11 +121,8 @@ func UploadFiles(c *gin.Context) {
 			continue
 		}
 			
-		// 生成 S3 key (路徑)
-		timestamp := time.Now().Format("20060102150405")
-		ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
-		key := fmt.Sprintf("users/%s_%s%s", timestamp,
-			strings.TrimSuffix(fileHeader.Filename, filepath.Ext(fileHeader.Filename)), ext)
+		// 生成 S3 key
+		key := fmt.Sprintf("users/%s/%s", userId, utils.GenerateS3FileKey(fileHeader))
 
 		// 檢測內容類型
 		contentType := fileHeader.Header.Get("Content-Type")
