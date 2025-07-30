@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"archive/zip"
 	"context"
 	"crypto/md5"
 	"fmt"
@@ -262,4 +263,98 @@ func DeleteFileByIds(c *gin.Context) {
 	
 	log.Printf("User %s successfully deleted files: %v", userId, request.FileIds)
 	c.JSON(http.StatusOK, gin.H{"message": "檔案刪除成功"})
+}
+
+func DownloadFiles(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	userId := c.MustGet("userId").(string)
+
+	var request dto.DownloadFilesRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的請求參數"})
+		return
+	}
+
+	if len(request.FileIds) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "請提供要下載的檔案 IDs"})
+		return
+	}
+
+	repos := c.MustGet("repos").(*repository.Repositories)
+	fileRepo := repos.File
+	s3Repo := repos.S3
+
+	files, err := fileRepo.GetByIds(ctx, request.FileIds)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "獲取檔案資訊失敗"})
+		return
+	}
+
+	if len(files) != len(request.FileIds) {
+		var missingFileIds []string
+		for _, fileId := range request.FileIds {
+			found := false
+			for _, file := range files {
+				if file.ID.String() == fileId {
+					found = true
+					break
+				}
+			}
+			if !found {
+				missingFileIds = append(missingFileIds, fileId)
+			}
+		}
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": fmt.Sprintf("以下檔案 ID 不存在: %v", missingFileIds),
+		})
+		return
+	}
+
+	for _, file := range files {
+		if file.UserID.String() != userId {
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": fmt.Sprintf("無權限下載檔案: %s", file.FileName),
+			})
+			return
+		}
+	}
+
+	archiveName := fmt.Sprintf("%d.zip", time.Now().Unix())
+	log.Printf("User %s downloading %d files as ZIP: %s", userId, len(files), archiveName)
+
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", archiveName))
+	c.Header("Content-Type", "application/zip")
+	c.Header("Transfer-Encoding", "chunked")
+
+	zipWriter := zip.NewWriter(c.Writer)
+	defer func() {
+		if err := zipWriter.Close(); err != nil {
+			log.Printf("Error closing ZIP writer: %v", err)
+		}
+	}()
+
+	for _, file := range files {
+		// Download file from S3
+		fileData, err := s3Repo.DownloadFile(ctx, file.FilePath)
+		if err != nil {
+			log.Printf("Error downloading file %s from S3: %v", file.FileName, err)
+			continue
+		}
+
+		zipFile, err := zipWriter.Create(file.FileName)
+		if err != nil {
+			log.Printf("Error creating ZIP entry for file %s: %v", file.FileName, err)
+			continue
+		}
+
+		_, err = zipFile.Write(fileData)
+		if err != nil {
+			log.Printf("Error writing file %s to ZIP: %v", file.FileName, err)
+			continue
+		}
+	}
+
+	log.Printf("ZIP download completed for user %s", userId)
 }

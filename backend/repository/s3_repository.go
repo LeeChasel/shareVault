@@ -3,6 +3,7 @@ package repository
 import (
 	"bytes"
 	"context"
+	"io"
 
 	"github.com/LeeChasel/shareVault/backend/configs"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -48,4 +49,23 @@ func (r *S3Repository) DeleteFiles(ctx context.Context, keys []string) error {
 	})
 	
 	return err
+}
+
+func (r *S3Repository) DownloadFile(ctx context.Context, key string) ([]byte, error) {
+	result, err := configs.S3Client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(r.bucket),
+		Key:    aws.String(key),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	defer result.Body.Close()
+
+	data, err := io.ReadAll(result.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }

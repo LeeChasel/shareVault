@@ -25,3 +25,7 @@ type UploadFilesResponse struct {
 type DeleteFilesRequest struct {
 	FileIds []string `json:"fileIds"`
 }
+
+type DownloadFilesRequest struct {
+	FileIds []string `json:"fileIds"`
+}
