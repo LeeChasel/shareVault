@@ -7,6 +7,7 @@ import (
 	"github.com/LeeChasel/shareVault/backend/models"
 	"github.com/LeeChasel/shareVault/backend/repository"
 	"github.com/LeeChasel/shareVault/backend/services"
+	"github.com/LeeChasel/shareVault/backend/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,7 +18,7 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	hash, err := services.HashPassword(req.Password)
+	hash, err := utils.HashPassword(req.Password)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "密碼加密失敗"})
 		return
@@ -68,7 +69,7 @@ func Login(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "此 email 尚未註冊，請先註冊"})
 		return
 	}
-	if !services.CheckPassword(user.Password, req.Password) {
+	if !utils.CheckPassword(user.Password, req.Password) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "密碼錯誤，請再試一次"})
 		return
 	}
