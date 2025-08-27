@@ -41,7 +41,7 @@ func ListUserFiles(services *service.ApplicationServices) gin.HandlerFunc {
 			return
 		}
 
-		var results []dto.ListUserFilesResponse
+		results := make([]dto.ListUserFilesResponse, 0, len(files))
 		for _, file := range files {
 			results = append(results, dto.ListUserFilesResponse{
 				Id:       file.ID.String(),
