@@ -8,9 +8,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const AUTH_HEADER = "Authorization"
+
 func JWTAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
+		authHeader := c.GetHeader(AUTH_HEADER)
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "未經授權，請先登入"})
 			c.Abort()

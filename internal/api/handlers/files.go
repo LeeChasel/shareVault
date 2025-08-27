@@ -26,6 +26,15 @@ func ListUserFiles(services *service.ApplicationServices) gin.HandlerFunc {
 
 		userId := c.MustGet("userId").(string)
 
+		isUserExist, err := services.UserService.ExistsByUserId(userId)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "無法讀取使用者資料"})
+			return
+		} else if !isUserExist {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "使用者不存在，請重新登入"})
+			return
+		}
+
 		files, err := services.FileService.GetByUserId(ctx, userId)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "無法獲取用戶檔案"})

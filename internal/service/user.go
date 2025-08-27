@@ -28,6 +28,10 @@ func (s *userService) ExistsByUsername(username string) (bool, error) {
 	return s.userRepo.ExistsByUsername(username)
 }
 
+func (s *userService) ExistsByUserId(userId string) (bool, error) {
+	return s.userRepo.ExistsByUserId(userId)
+}
+
 func (s *userService) FindByEmail(email string) (*models.User, error) {
 	return s.userRepo.FindByEmail(email)
 }
