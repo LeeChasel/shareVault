@@ -6,6 +6,7 @@ import (
 
 	"github.com/LeeChasel/shareVault/internal/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 const AUTH_HEADER = "Authorization"
@@ -27,7 +28,14 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("userId", claims.Subject)
+		userId, err := uuid.Parse(claims.Subject)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "登入的 userId 格式錯誤"})
+			c.Abort()
+			return
+		}
+
+		c.Set("userId", userId)
 		c.Next()
 	}
 }

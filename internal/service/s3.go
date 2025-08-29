@@ -17,10 +17,6 @@ func NewS3Service(s3 repoInterface.S3Repository) serviceInterface.S3Service {
 	}
 }
 
-func (s *s3Service) UploadFiles(ctx context.Context, key string, data []byte, contentType string) error {
-	return s.s3Repo.UploadFiles(ctx, key, data, contentType)
-}
-
 func (s *s3Service) DeleteFiles(ctx context.Context, keys []string) error {
 	return s.s3Repo.DeleteFiles(ctx, keys)
 }

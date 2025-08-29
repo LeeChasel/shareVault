@@ -10,7 +10,6 @@ import (
 	"github.com/LeeChasel/shareVault/internal/models"
 	"github.com/LeeChasel/shareVault/internal/repository"
 	"github.com/LeeChasel/shareVault/internal/service"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gin-gonic/gin"
 )
 
@@ -34,12 +33,12 @@ func main() {
 	// Repository
 	userRepo := repository.NewUserRepository(db)
 	fileRepo := repository.NewFileRepository(db)
-	s3Repo := repository.NewS3Repository(s3.NewFromConfig(awsCfg), configs.Env.AWSS3Bucket)
+	s3Repo := repository.NewS3Repository(awsCfg, configs.Env.AWSS3Bucket)
 
 	// Service
 	services := &service.ApplicationServices{
 		UserService: service.NewUserService(userRepo),
-		FileService: service.NewFileService(fileRepo),
+		FileService: service.NewFileService(fileRepo, s3Repo),
 		S3Service:   service.NewS3Service(s3Repo),
 	}
 

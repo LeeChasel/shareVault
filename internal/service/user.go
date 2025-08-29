@@ -4,6 +4,7 @@ import (
 	"github.com/LeeChasel/shareVault/internal/models"
 	repoInterface "github.com/LeeChasel/shareVault/internal/repository/interfaces"
 	serviceInterface "github.com/LeeChasel/shareVault/internal/service/interfaces"
+	"github.com/google/uuid"
 )
 
 type userService struct {
@@ -28,7 +29,7 @@ func (s *userService) ExistsByUsername(username string) (bool, error) {
 	return s.userRepo.ExistsByUsername(username)
 }
 
-func (s *userService) ExistsByUserId(userId string) (bool, error) {
+func (s *userService) ExistsByUserId(userId uuid.UUID) (bool, error) {
 	return s.userRepo.ExistsByUserId(userId)
 }
 

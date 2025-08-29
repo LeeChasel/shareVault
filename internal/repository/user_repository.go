@@ -3,6 +3,7 @@ package repository
 import (
 	"github.com/LeeChasel/shareVault/internal/models"
 	"github.com/LeeChasel/shareVault/internal/repository/interfaces"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -38,9 +39,9 @@ func (r *userRepository) ExistsByUsername(username string) (bool, error) {
 	return count > 0, nil
 }
 
-func (r *userRepository) ExistsByUserId(userId string) (bool, error) {
+func (r *userRepository) ExistsByUserId(userId uuid.UUID) (bool, error) {
 	var count int64
-	err := r.db.Model(&models.User{}).Where("id = ?", userId).Count(&count).Error
+	err := r.db.Model(&models.User{}).Where("id = ?", userId.String()).Count(&count).Error
 	if err != nil {
 		return false, err
 	}

@@ -2,7 +2,6 @@ package utils
 
 import (
 	"fmt"
-	"mime/multipart"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -15,10 +14,10 @@ func sanitizeFilename(filename string) string {
 	return reg.ReplaceAllString(filename, "_")
 }
 
-func GenerateS3FileKey(fileHeader *multipart.FileHeader) string {
+func GenerateS3FileKey(filename string) string {
 	timestamp := time.Now().Format("20060102150405.000")
-	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
-	fileNameWithoutExt := sanitizeFilename(strings.TrimSuffix(fileHeader.Filename, filepath.Ext(fileHeader.Filename)))
+	ext := strings.ToLower(filepath.Ext(filename))
+	fileNameWithoutExt := sanitizeFilename(strings.TrimSuffix(filename, filepath.Ext(filename)))
 
 	key := fmt.Sprintf("%s_%s%s", timestamp, fileNameWithoutExt, ext)
 	return key

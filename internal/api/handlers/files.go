@@ -3,9 +3,7 @@ package handlers
 import (
 	"archive/zip"
 	"context"
-	"crypto/md5"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"time"
@@ -13,18 +11,16 @@ import (
 	"github.com/LeeChasel/shareVault/internal/api/dto"
 	"github.com/LeeChasel/shareVault/internal/models"
 	"github.com/LeeChasel/shareVault/internal/service"
-	"github.com/LeeChasel/shareVault/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
 func ListUserFiles(services *service.ApplicationServices) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Timeout context
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
 		defer cancel()
 
-		userId := c.MustGet("userId").(string)
+		userId := c.MustGet("userId").(uuid.UUID)
 
 		isUserExist, err := services.UserService.ExistsByUserId(userId)
 		if err != nil {
@@ -59,15 +55,14 @@ func ListUserFiles(services *service.ApplicationServices) gin.HandlerFunc {
 
 func UploadFiles(services *service.ApplicationServices) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Timeout context
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
 		defer cancel()
 
-		userId := c.MustGet("userId").(string)
+		userId := c.MustGet("userId").(uuid.UUID)
 
 		form, err := c.MultipartForm()
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "無效的檔案上傳"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "無法解析表單"})
 			return
 		}
 
@@ -77,124 +72,43 @@ func UploadFiles(services *service.ApplicationServices) gin.HandlerFunc {
 			return
 		}
 
-		existingFiles, err := services.FileService.GetByUserId(ctx, userId)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "無法獲取用戶檔案"})
-			return
+		uploadResult := services.FileService.UploadFiles(ctx, userId, files)
+		successFiles := make([]*models.File, 0)
+		failedFiles := make([]dto.UploadResult, 0)
+
+		for _, result := range uploadResult {
+			if result.Success {
+				successFiles = append(successFiles, result.File)
+			} else {
+				failedFiles = append(failedFiles, result)
+			}
 		}
 
-		var results []dto.UploadResult
-		successCount := 0
-
-		for _, fileHeader := range files {
-			result := dto.UploadResult{
-				FileName: fileHeader.Filename,
-			}
-
-			file, err := fileHeader.Open()
-			if err != nil {
-				result.Error = fmt.Sprintf("無法開啟檔案: %v", err)
-				results = append(results, result)
-				continue
-			}
-
-			// 讀取檔案內容
-			fileData, err := io.ReadAll(file)
-			file.Close()
-			if err != nil {
-				result.Error = fmt.Sprintf("無法讀取檔案內容: %v", err)
-				results = append(results, result)
-				continue
-			}
-
-			fileHash := fmt.Sprintf("%x", md5.Sum(fileData))
-
-			// 如果檔案已經存在，則不需要上傳，直接回傳已存在的資訊
-			isFileDuplicate := false
-			for _, existingFile := range existingFiles {
-				if existingFile.FileHash == fileHash {
-					result.Success = true
-					result.FilePath = existingFile.FilePath
-					result.FileId = existingFile.ID.String()
-
-					results = append(results, result)
-					successCount++
-					isFileDuplicate = true
-					break
-				}
-			}
-			if isFileDuplicate {
-				continue
-			}
-
-			// 生成 S3 key
-			key := fmt.Sprintf("users/%s/%s", userId, utils.GenerateS3FileKey(fileHeader))
-
-			// 檢測內容類型
-			contentType := fileHeader.Header.Get("Content-Type")
-			if contentType == "" {
-				contentType = "application/octet-stream"
-			}
-
-			err = services.S3Service.UploadFiles(ctx, key, fileData, contentType)
-			if err != nil {
-				result.Error = fmt.Sprintf("S3 上傳失敗: %v", err)
-				results = append(results, result)
-				continue
-			}
-
-			// 創建 File 記錄
-			fileRecord := &models.File{
-				UserID:   uuid.MustParse(userId),
-				FileName: fileHeader.Filename,
-				FilePath: key,
-				FileHash: fileHash,
-				FileSize: int64(len(fileData)),
-				MimeType: contentType,
-			}
-
-			createdFile, err := services.FileService.Create(ctx, fileRecord)
-			if err != nil {
-				// rollback s3 upload
-				services.S3Service.DeleteFiles(ctx, []string{key})
-				result.Error = fmt.Sprintf("資料庫記錄失敗: %v", err)
-				results = append(results, result)
-				continue
-			}
-
-			result.Success = true
-			result.FilePath = key
-			result.FileId = createdFile.ID.String()
-			results = append(results, result)
-			successCount++
+		statusCode := http.StatusOK
+		if len(successFiles) == 0 {
+			statusCode = http.StatusInternalServerError
+		} else if len(failedFiles) > 0 {
+			statusCode = http.StatusPartialContent
 		}
 
-		if successCount == 0 {
-			c.JSON(http.StatusInternalServerError, dto.UploadFilesResponse{
-				Message: "所有檔案上傳失敗",
-				Results: results,
-			})
-		} else if successCount == len(files) {
-			c.JSON(http.StatusOK, dto.UploadFilesResponse{
-				Message: "所有檔案上傳成功",
-				Results: results,
-			})
-		} else {
-			c.JSON(http.StatusPartialContent, dto.UploadFilesResponse{
-				Message: fmt.Sprintf("部分檔案上傳成功 (%d/%d)", successCount, len(files)),
-				Results: results,
-			})
-		}
+		c.JSON(statusCode, gin.H{
+			"message":      fmt.Sprintf("成功上傳 %d/%d 個檔案", len(successFiles), len(uploadResult)),
+			"total":        len(uploadResult),
+			"success":      len(successFiles),
+			"failed":       len(failedFiles),
+			"successFiles": successFiles,
+			"failedFiles":  failedFiles,
+		})
 	}
 }
 
 // 不考慮刪除失敗的狀況
 func DeleteFileByIds(services *service.ApplicationServices) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
 		defer cancel()
 
-		userId := c.MustGet("userId").(string)
+		userId := c.MustGet("userId").(uuid.UUID)
 
 		var request dto.DeleteFilesRequest
 		if err := c.ShouldBindJSON(&request); err != nil {
@@ -239,7 +153,7 @@ func DeleteFileByIds(services *service.ApplicationServices) gin.HandlerFunc {
 		}
 
 		for _, file := range files {
-			if file.UserID.String() != userId {
+			if file.UserID != userId {
 				c.JSON(http.StatusForbidden, gin.H{
 					"error": fmt.Sprintf("無權限刪除檔案: %s", file.FileName),
 				})
@@ -261,20 +175,20 @@ func DeleteFileByIds(services *service.ApplicationServices) gin.HandlerFunc {
 		err = services.S3Service.DeleteFiles(ctx, filePaths)
 		if err != nil {
 			// S3 刪除失敗，但資料庫已刪除
-			log.Printf("S3 deletion failed for user %s, files: %v, error: %v", userId, filePaths, err)
+			log.Printf("S3 deletion failed for user %s, files: %v, error: %v", userId.String(), filePaths, err)
 		}
 
-		log.Printf("User %s successfully deleted files: %v", userId, request.FileIds)
+		log.Printf("User %s successfully deleted files: %v", userId.String(), request.FileIds)
 		c.JSON(http.StatusOK, gin.H{"message": "檔案刪除成功"})
 	}
 }
 
 func DownloadFiles(services *service.ApplicationServices) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Minute)
 		defer cancel()
 
-		userId := c.MustGet("userId").(string)
+		userId := c.MustGet("userId").(uuid.UUID)
 
 		var request dto.DownloadFilesRequest
 		if err := c.ShouldBindJSON(&request); err != nil {
@@ -314,7 +228,7 @@ func DownloadFiles(services *service.ApplicationServices) gin.HandlerFunc {
 		}
 
 		for _, file := range files {
-			if file.UserID.String() != userId {
+			if file.UserID != userId {
 				c.JSON(http.StatusForbidden, gin.H{
 					"error": fmt.Sprintf("無權限下載檔案: %s", file.FileName),
 				})
@@ -323,7 +237,7 @@ func DownloadFiles(services *service.ApplicationServices) gin.HandlerFunc {
 		}
 
 		archiveName := fmt.Sprintf("%d.zip", time.Now().Unix())
-		log.Printf("User %s downloading %d files as ZIP: %s", userId, len(files), archiveName)
+		log.Printf("User %s downloading %d files as ZIP: %s", userId.String(), len(files), archiveName)
 
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", archiveName))
 		c.Header("Content-Type", "application/zip")
@@ -357,6 +271,6 @@ func DownloadFiles(services *service.ApplicationServices) gin.HandlerFunc {
 			}
 		}
 
-		log.Printf("ZIP download completed for user %s", userId)
+		log.Printf("ZIP download completed for user %s", userId.String())
 	}
 }

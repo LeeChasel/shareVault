@@ -1,5 +1,7 @@
 package dto
 
+import "github.com/LeeChasel/shareVault/internal/models"
+
 type ListUserFilesResponse struct {
 	Id       string `json:"id"`
 	FileName string `json:"fileName"`
@@ -10,16 +12,10 @@ type ListUserFilesResponse struct {
 }
 
 type UploadResult struct {
-	Success  bool   `json:"success"`
-	FileName string `json:"fileName"`
-	FilePath string `json:"filePath,omitempty"`
-	FileId   string `json:"fileId,omitempty"`
-	Error    string `json:"error,omitempty"`
-}
-
-type UploadFilesResponse struct {
-	Message string         `json:"message"`
-	Results []UploadResult `json:"results"`
+	FileName string       `json:"filename"`
+	Success  bool         `json:"success"`
+	File     *models.File `json:"file,omitempty"`
+	Error    string       `json:"error,omitempty"`
 }
 
 type DeleteFilesRequest struct {

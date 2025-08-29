@@ -5,6 +5,7 @@ import (
 
 	"github.com/LeeChasel/shareVault/internal/models"
 	"github.com/LeeChasel/shareVault/internal/repository/interfaces"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -25,9 +26,9 @@ func (r *fileRepository) Create(ctx context.Context, file *models.File) (*models
 	return file, nil
 }
 
-func (r *fileRepository) GetByUserId(ctx context.Context, userId string) ([]*models.File, error) {
+func (r *fileRepository) GetByUserId(ctx context.Context, userId uuid.UUID) ([]*models.File, error) {
 	var files []*models.File
-	if err := r.db.WithContext(ctx).Where("user_id = ?", userId).Find(&files).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("user_id = ?", userId.String()).Find(&files).Error; err != nil {
 		return nil, err
 	}
 	return files, nil
