@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 
 	"github.com/LeeChasel/shareVault/internal/api/dto"
@@ -221,6 +222,27 @@ func (s *fileService) GetByIds(ctx context.Context, fileIds []string) ([]*models
 	return s.fileRepo.GetByIds(ctx, fileIds)
 }
 
-func (s *fileService) DeleteByIds(ctx context.Context, fileIds []string) error {
-	return s.fileRepo.DeleteByIds(ctx, fileIds)
+func (s *fileService) DeleteFiles(ctx context.Context, files []*models.File) error {
+	ids := make([]string, len(files))
+	for i, f := range files {
+		ids[i] = f.ID.String()
+	}
+
+	err := s.fileRepo.DeleteByIds(ctx, ids)
+	if (err != nil) {
+		return fmt.Errorf("資料庫檔案刪除失敗： %s", err.Error())
+	}
+
+	paths := make([]string, len(files))
+	for i, f := range files {
+		paths[i] = f.FilePath
+	}
+
+	err = s.s3Repo.DeleteFiles(ctx, paths)
+	if (err != nil) {
+		// S3 刪除失敗，但資料庫已刪除，對使用者而言是成功刪除
+		log.Printf("S3 檔案刪除失敗, 檔案: %v, 錯誤: %v", paths, err)
+	}
+
+	return nil
 }

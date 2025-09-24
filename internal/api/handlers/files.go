@@ -161,21 +161,10 @@ func DeleteFileByIds(services *service.ApplicationServices) gin.HandlerFunc {
 			}
 		}
 
-		err = services.FileService.DeleteByIds(ctx, request.FileIds)
+		err = services.FileService.DeleteFiles(ctx, files)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "資料庫刪除檔案失敗"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
-		}
-
-		var filePaths []string
-		for _, file := range files {
-			filePaths = append(filePaths, file.FilePath)
-		}
-
-		err = services.S3Service.DeleteFiles(ctx, filePaths)
-		if err != nil {
-			// S3 刪除失敗，但資料庫已刪除
-			log.Printf("S3 deletion failed for user %s, files: %v, error: %v", userId.String(), filePaths, err)
 		}
 
 		log.Printf("User %s successfully deleted files: %v", userId.String(), request.FileIds)

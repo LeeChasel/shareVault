@@ -14,5 +14,5 @@ type FileService interface {
 	UploadFiles(ctx context.Context, userId uuid.UUID, fileHeaders []*multipart.FileHeader) []dto.UploadResult
 	GetByUserId(ctx context.Context, userId uuid.UUID) ([]*models.File, error)
 	GetByIds(ctx context.Context, fileIds []string) ([]*models.File, error)
-	DeleteByIds(ctx context.Context, fileIds []string) error
+	DeleteFiles(ctx context.Context, files []*models.File) error
 }
