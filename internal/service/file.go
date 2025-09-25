@@ -104,14 +104,18 @@ func (s *fileService) uploadBatch(ctx context.Context, userId uuid.UUID, batch [
 
 		hash, err := s.calculateFileHash(file)
 		if err != nil {
-			file.Close()
+			if err := file.Close(); err != nil {
+				log.Printf("Warning: 無法關閉檔案 %s: %v", fh.Filename, err)
+			}
 			results[idx].Error = fmt.Sprintf("產生雜湊失敗: %v", err)
 			continue
 		}
 
 		// 因為計算hash後檔案指標在檔案末端，不重置會上傳空檔案
 		if _, err := file.Seek(0, 0); err != nil {
-			file.Close()
+			if err := file.Close(); err != nil {
+				log.Printf("Warning: 無法關閉檔案 %s: %v", fh.Filename, err)
+			}
 			results[idx].Error = fmt.Sprintf("重設檔案讀取位置失敗: %v", err)
 			continue
 		}
@@ -134,7 +138,9 @@ func (s *fileService) uploadBatch(ctx context.Context, userId uuid.UUID, batch [
 	defer func() {
 		for _, upload := range validUploads {
 			if upload.file != nil {
-				upload.file.Close()
+				if err := upload.file.Close(); err != nil {
+					log.Printf("Warning: 無法關閉檔案 %s: %v", upload.fileHeader.Filename, err)
+				}
 			}
 		}
 	}()

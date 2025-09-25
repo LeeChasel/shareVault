@@ -43,5 +43,7 @@ func main() {
 
 	r := gin.Default()
 	routes.InitRoutes(r, services)
-	r.Run(fmt.Sprintf(":%d", PORT))
+	if err := r.Run(fmt.Sprintf(":%d", PORT)); err != nil {
+		log.Fatalf("無法啟動伺服器: %v", err)
+	}
 }

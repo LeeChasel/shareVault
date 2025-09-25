@@ -227,7 +227,9 @@ func DownloadFiles(services *service.ApplicationServices) gin.HandlerFunc {
 		defer func() {
 			for _, f := range streamFiles {
 				if f.Stream != nil {
-					f.Stream.Close()
+					if err := f.Stream.Close(); err != nil {
+						log.Printf("Warning: 無法關閉檔案串流 %s: %v", f.Name, err)
+					}
 				}
 			}
 		}()

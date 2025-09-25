@@ -43,13 +43,6 @@ func LoadEnv() {
 	}
 }
 
-func getEnv(key string, fallback string) string {
-	if val := os.Getenv(key); val != "" {
-		return val
-	}
-	return fallback
-}
-
 func mustGetEnv(key string) string {
 	if val := os.Getenv(key); val != "" {
 		return val

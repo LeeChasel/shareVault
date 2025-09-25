@@ -1,4 +1,4 @@
-.PHONY: build run dev clean test docker-up docker-down docker-logs docker-clean
+.PHONY: build run dev clean test lint docker-up docker-down docker-logs docker-clean
 
 DOCKERFILE_PATH = deployments/
 
@@ -34,6 +34,10 @@ fmt:
 # Vet code
 vet:
 	go vet ./...
+
+# Lint code
+lint:
+	golangci-lint run --no-config
 
 # Docker commands
 docker-up:
