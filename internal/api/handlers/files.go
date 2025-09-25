@@ -4,8 +4,10 @@ import (
 	"archive/zip"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/LeeChasel/shareVault/internal/api/dto"
@@ -102,6 +104,36 @@ func UploadFiles(services *service.ApplicationServices) gin.HandlerFunc {
 	}
 }
 
+func validateFileOwnership(userId uuid.UUID, files []*models.File) error {
+	for _, file := range files {
+		if file.UserID != userId {
+			return fmt.Errorf("無權限操作檔案: %s", file.FileName)
+		}
+	}
+
+	return nil
+}
+
+func validateFilesExistence(fileIds []string, files []*models.File) error {
+	fileSet := make(map[string]struct{}, len(files))
+	for _, f := range files {
+		fileSet[f.ID.String()] = struct{}{}
+	}
+
+	var missingFileIds []string
+	for _, id := range fileIds {
+		if _, ok := fileSet[id]; !ok {
+			missingFileIds = append(missingFileIds, id)
+		}
+	}
+
+	if len(missingFileIds) > 0 {
+		return fmt.Errorf("以下檔案 ID 不存在: %s", strings.Join(missingFileIds, ", "))
+	}
+
+	return nil
+}
+
 // 不考慮刪除失敗的狀況
 func DeleteFileByIds(services *service.ApplicationServices) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -132,33 +164,14 @@ func DeleteFileByIds(services *service.ApplicationServices) gin.HandlerFunc {
 			return
 		}
 
-		if len(request.FileIds) != len(files) {
-			// Find the missing file IDs
-			var missingFileIds []string
-			for _, fileId := range request.FileIds {
-				found := false
-				for _, file := range files {
-					if file.ID.String() == fileId {
-						found = true
-						break
-					}
-				}
-				if !found {
-					missingFileIds = append(missingFileIds, fileId)
-				}
-			}
-
-			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("以下檔案 ID 不存在: %v", missingFileIds)})
+		if err := validateFilesExistence(request.FileIds, files); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		for _, file := range files {
-			if file.UserID != userId {
-				c.JSON(http.StatusForbidden, gin.H{
-					"error": fmt.Sprintf("無權限刪除檔案: %s", file.FileName),
-				})
-				return
-			}
+		if err := validateFileOwnership(userId, files); err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
 		}
 
 		err = services.FileService.DeleteFiles(ctx, files)
@@ -196,41 +209,34 @@ func DownloadFiles(services *service.ApplicationServices) gin.HandlerFunc {
 			return
 		}
 
-		if len(files) != len(request.FileIds) {
-			var missingFileIds []string
-			for _, fileId := range request.FileIds {
-				found := false
-				for _, file := range files {
-					if file.ID.String() == fileId {
-						found = true
-						break
-					}
-				}
-				if !found {
-					missingFileIds = append(missingFileIds, fileId)
-				}
-			}
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": fmt.Sprintf("以下檔案 ID 不存在: %v", missingFileIds),
-			})
+		if err := validateFilesExistence(request.FileIds, files); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		for _, file := range files {
-			if file.UserID != userId {
-				c.JSON(http.StatusForbidden, gin.H{
-					"error": fmt.Sprintf("無權限下載檔案: %s", file.FileName),
-				})
-				return
-			}
+		if err := validateFileOwnership(userId, files); err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
 		}
+
+		streamFiles, err := services.FileService.GetFileStreams(ctx, files)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "獲取檔案串流失敗" + err.Error()})
+			return
+		}
+		defer func() {
+			for _, f := range streamFiles {
+				if f.Stream != nil {
+					f.Stream.Close()
+				}
+			}
+		}()
 
 		archiveName := fmt.Sprintf("%d.zip", time.Now().Unix())
 		log.Printf("User %s downloading %d files as ZIP: %s", userId.String(), len(files), archiveName)
 
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", archiveName))
 		c.Header("Content-Type", "application/zip")
-		c.Header("Transfer-Encoding", "chunked")
 
 		zipWriter := zip.NewWriter(c.Writer)
 		defer func() {
@@ -239,23 +245,15 @@ func DownloadFiles(services *service.ApplicationServices) gin.HandlerFunc {
 			}
 		}()
 
-		for _, file := range files {
-			// Download file from S3
-			fileData, err := services.S3Service.DownloadFile(ctx, file.FilePath)
+		for _, file := range streamFiles {
+			w, err := zipWriter.Create(file.Name)
 			if err != nil {
-				log.Printf("Error downloading file %s from S3: %v", file.FileName, err)
+				log.Printf("Error creating ZIP entry for file %s: %v", file.Name, err)
 				continue
 			}
 
-			zipFile, err := zipWriter.Create(file.FileName)
-			if err != nil {
-				log.Printf("Error creating ZIP entry for file %s: %v", file.FileName, err)
-				continue
-			}
-
-			_, err = zipFile.Write(fileData)
-			if err != nil {
-				log.Printf("Error writing file %s to ZIP: %v", file.FileName, err)
+			if _, err := io.Copy(w, file.Stream); err != nil {
+				log.Printf("Error writing file %s to ZIP: %v", file.Name, err)
 				continue
 			}
 		}

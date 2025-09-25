@@ -210,10 +210,6 @@ func (s *fileService) UploadFiles(ctx context.Context, userId uuid.UUID, fileHea
 	return result
 }
 
-func (s *fileService) Create(ctx context.Context, file *models.File) (*models.File, error) {
-	return s.fileRepo.Create(ctx, file)
-}
-
 func (s *fileService) GetByUserId(ctx context.Context, userId uuid.UUID) ([]*models.File, error) {
 	return s.fileRepo.GetByUserId(ctx, userId)
 }
@@ -229,7 +225,7 @@ func (s *fileService) DeleteFiles(ctx context.Context, files []*models.File) err
 	}
 
 	err := s.fileRepo.DeleteByIds(ctx, ids)
-	if (err != nil) {
+	if err != nil {
 		return fmt.Errorf("資料庫檔案刪除失敗： %s", err.Error())
 	}
 
@@ -239,10 +235,27 @@ func (s *fileService) DeleteFiles(ctx context.Context, files []*models.File) err
 	}
 
 	err = s.s3Repo.DeleteFiles(ctx, paths)
-	if (err != nil) {
+	if err != nil {
 		// S3 刪除失敗，但資料庫已刪除，對使用者而言是成功刪除
 		log.Printf("S3 檔案刪除失敗, 檔案: %v, 錯誤: %v", paths, err)
 	}
 
 	return nil
+}
+
+func (s *fileService) GetFileStreams(ctx context.Context, files []*models.File) ([]*serviceInterface.FileContent, error) {
+	var result []*serviceInterface.FileContent
+	for _, file := range files {
+		stream, err := s.s3Repo.GetObjectStream(ctx, file.FilePath)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, &serviceInterface.FileContent{
+			Name:   file.FileName,
+			Stream: stream,
+		})
+	}
+
+	return result, nil
 }

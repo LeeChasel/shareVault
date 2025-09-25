@@ -21,5 +21,5 @@ type S3UploadResult struct {
 type S3Repository interface {
 	UploadFiles(ctx context.Context, items []S3UploadItem) ([]*S3UploadResult, error)
 	DeleteFiles(ctx context.Context, keys []string) error
-	DownloadFile(ctx context.Context, key string) ([]byte, error)
+	GetObjectStream(ctx context.Context, key string) (io.ReadCloser, error)
 }

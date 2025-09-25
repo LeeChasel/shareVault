@@ -111,7 +111,7 @@ func (r *s3Repository) DeleteFiles(ctx context.Context, keys []string) error {
 	return err
 }
 
-func (r *s3Repository) DownloadFile(ctx context.Context, key string) ([]byte, error) {
+func (r *s3Repository) GetObjectStream(ctx context.Context, key string) (io.ReadCloser, error) {
 	result, err := r.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(r.bucketName),
 		Key:    aws.String(key),
@@ -120,12 +120,6 @@ func (r *s3Repository) DownloadFile(ctx context.Context, key string) ([]byte, er
 	if err != nil {
 		return nil, err
 	}
-	defer result.Body.Close()
 
-	data, err := io.ReadAll(result.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	return data, nil
+	return result.Body, nil
 }

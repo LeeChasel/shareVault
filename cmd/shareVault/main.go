@@ -39,7 +39,6 @@ func main() {
 	services := &service.ApplicationServices{
 		UserService: service.NewUserService(userRepo),
 		FileService: service.NewFileService(fileRepo, s3Repo),
-		S3Service:   service.NewS3Service(s3Repo),
 	}
 
 	r := gin.Default()
